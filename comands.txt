@@ -1,80 +1,33 @@
-*** Выведите для каждого потока номер, год, месяц и день начала потока. Каждое значение отобразите в отдельном столбце.
-SELECT stream_number, SUBSTR(started_at,7,4) AS year, SUBSTR(started_at,4,2) AS month, SUBSTR(started_at,1,2) AS day FROM streams;
-+---------------+------+-------+-----+
-| stream_number | year | month | day |
-+---------------+------+-------+-----+
-| 165           | 2020 | 08    | 18  |
-| 178           | 2020 | 10    | 02  |
-| 203           | 2020 | 11    | 12  |
-| 210           | 2020 | 12    | 03  |
-+---------------+------+-------+-----+
+1. Создать представление, которое выводит название курса, номер последнего потока, 
+дату начала обучения последнего потока и среднюю успеваемость курса по всем потокам.
+CREATE VIEW task_1 AS
+SELECT course.course_name, streams.stream_number,streams.date_start,AVG(academic_performance.performance) AS average_perfomanse FROM academic_performance 
+    JOIN streams 
+    JOIN course 
+    ON academic_performance.stream_id = streams.id AND course.id =streams.course_id
+    GROUP BY course.id HAVING course_id = 1 AND streams.id = MAX(streams.id);
+2. Удалить из базы данных всю информацию,
+которая относится к преподавателю с идентификатором, равным 3. Выполнить все необходимые действия в транзакции.
 
-***Получите идентификатор и номер потока, запланированный на самую позднюю дату.
-SELECT id, stream_number FROM streams ORDER BY SUBSTR(started_at,7,4) || '-' || SUBSTR(started_at,4,2) || '-' || SUBSTR(started_at,1,2) DESC LIMIT 1;
-+----+---------------+
-| id | stream_number |
-+----+---------------+
-| 4  | 210           |
-+----+---------------+
+BEGIN TRANSACTION;
+DELETE FROM academic_performance WHERE teacher_id = 3;
+DELETE FROM teachers WHERE id = 3;
+COMMIT;
 
-*** Покажите уникальные значения года по датам начала потоков обучения.
+3. Создать триггер для таблицы academic_performance, 
+который проверяет значение успеваемости на соответствие диапазону чисел между 0.1 и 5 включительно.
 
- SELECT DISTINCT(SUBSTR(started_at,7,4)) AS uniq_year FROM streams;
-+-----------+
-| uniq_year |
-+-----------+
-| 2020      |
-+-----------+
+CREATE TRIGGER check_range_performance BEFORE INSERT
+ON academic_performance
+BEGIN
+  SELECT CASE 
+  WHEN    
+    (NEW.performance < 0.1) OR (NEW.performance > 5)
+  THEN
+    RAISE(ABORT, 'Wrong value for performance!')
+  END;
+END;
 
-
-
-*** Найдите количество преподавателей в базе данных. Выведите искомое значение в столбец с именем total_teachers.
-sqlite> SELECT MAX(id) AS total_teachers FROM teachers;
-+----------------+
-| total_teachers |
-+----------------+
-| 3              |
-+----------------+
-sqlite> SELECT * FROM teachers;
-+----+-----------+----------+------------------------+
-| id | firstname | lastname |         email          |
-+----+-----------+----------+------------------------+
-| 1  | Николай   | Савельев | saveliev.n@mai.ru      |
-| 2  | Наталья   | Петрова  | petrova.n@yandex.ru    |
-| 3  | Елена     | Малышева | malisheva.e@google.com |
-+----+-----------+----------+------------------------+
-
-*** Покажите даты начала двух последних по времени потоков.
-SELECT started_at FROM streams ORDER BY id DESC LIMIT 2;
-+------------+
-| started_at |
-+------------+
-| 03.12.2020 |
-| 12.11.2020 |
-+------------+
-
-*** Найдите среднюю успеваемости учеников по потоку преподавателя с идентификатором равным 1.
-SELECT AVG(performance) AS avarage_performance FROM  academic_performance WHERE teacher_id = 1;
-+---------------------+
-| avarage_performance |
-+---------------------+
-| 4.85                |
-+---------------------+
-
-*** Дополнительное задание (выполняется по желанию): найдите идентификаторы преподавателей, у кого средняя успеваемость по всем потокам меньше 4.8.
-sqlite> SELECT * FROM  academic_performance;
-+------------+-----------+-------------+
-| teacher_id | stream_id | performance |
-+------------+-----------+-------------+
-| 3          | 1         | 4.7         |
-| 2          | 2         | 4.9         |
-| 1          | 3         | 4.8         |
-| 1          | 4         | 4.9         |
-+------------+-----------+-------------+
-
-sqlite> SELECT teacher_id FROM  academic_performance GROUP BY teacher_id HAVING AVG(performance) < 4.8;
-+------------+
-| teacher_id |
-+------------+
-| 3          |
-+------------+
+sqlite> INSERT INTO academic_performance VALUES (1, 1, 4.6);
+sqlite> INSERT INTO academic_performance VALUES (1, 1, 7.6);
+Error: Wrong value for performance!
