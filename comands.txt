@@ -1,60 +1,49 @@
-1 Найти потоки, количество учеников в которых больше или равно 40. 
-В отчёт вывести номер потока, название курса и количество учеников.
+1. Показать информацию по потокам. В отчет вывести номер потока, название курса и дату начала занятий.
 
  SELECT streams.stream_number, 
-       (SELECT course.course_name FROM course WHERE course.id = streams.course_id ) AS course_name,
-       amount_students 
-       FROM  streams WHERE amount_students >= 40;
-+---------------+-------------+-----------------+
-| stream_number | course_name | amount_students |
-+---------------+-------------+-----------------+
-| 210           | Базы данных | 41              |
-+---------------+-------------+-----------------+
+        course.course_name, 
+        streams.started_at 
+        FROM streams JOIN course 
+        WHERE streams.course_id=course.id;
++---------------+------------------------+------------+
+| stream_number |      course_name       | started_at |
++---------------+------------------------+------------+
+| 165           | Linux. Рабочая станция | 18.08.2020 |
+| 178           | Основы Python          | 02.10.2020 |
+| 203           | Базы данных            | 12.11.2020 |
+| 210           | Базы данных            | 03.12.2020 |
++---------------+------------------------+------------+
 
-2 Найти два потока с самыми низкими значениями успеваемости. 
-В отчёт вывести номер потока, название курса, фамилию и имя преподавателя (одним столбцом), оценку успеваемости.
- SELECT
-   ...>    (SELECT streams.stream_number FROM streams WHERE streams.id = academic_performance.stream_id) AS stream_number,
-   ...>    (SELECT course.course_name FROM course WHERE
-   ...>         course.id = (SELECT streams.course_id FROM streams WHERE streams.id = academic_performance.stream_id)) AS course_name,
-   ...>    (SELECT teachers.lastname  || ' ' || teachers.firstname FROM teachers WHERE teachers.id = academic_performance.teacher_id ) AS teacher_name,
-   ...>    performance
-   ...>   FROM  academic_performance ORDER BY performance ASC LIMIT 2;
-+---------------+------------------------+------------------+-------------+
-| stream_number |      course_name       |   teacher_name   | performance |
-+---------------+------------------------+------------------+-------------+
-| 165           | Linux. Рабочая станция | Малышева Елена   | 4.7         |
-| 203           | Базы данных            | Савельев Николай | 4.8         |
-+---------------+------------------------+------------------+-------------+
+2. Найти общее количество учеников для каждого курса. 
+В отчет вывести название курса и количество учеников по всем потокам курса.  
 
-3 Найти среднюю успеваемость всех потоков преподавателя Николая Савельева.
-В отчёт вывести идентификатор преподавателя и среднюю оценку по потокам.
+SELECT course.course_name, 
+       SUM(streams.amount_students) AS sum_students 
+       FROM course JOIN streams ON course.id = streams.course_id 
+       GROUP BY streams.course_id;
++------------------------+-------------------------+
+|      course_name       | sum_students            |
++------------------------+-------------------------+
+| Базы данных            | 76                      |
+| Основы Python          | 37                      |
+| Linux. Рабочая станция | 34                      |
++------------------------+-------------------------+
 
-sqlite> SELECT teacher_id, AVG(performance) as avarage_performance FROM academic_performance WHERE academic_performance.teacher_id = (SELECT teachers.id FROM teachers WHERE teachers.firstname || ' ' || teachers.lastname = 'Николай Савельев');
-+------------+---------------------+
-| teacher_id | avarage_performance |
-+------------+---------------------+
-| 1          | 4.85                |
-+------------+---------------------+
-
-4 Найти потоки преподавателя Натальи Петровой а также потоки, по которым успеваемость ниже 4.8. 
-В отчёт вывести идентификатор потока, фамилию и имя преподавателя.  
-
-sqlite> SELECT stream_id,
-   ...>       (SELECT teachers.firstname FROM teachers WHERE teachers.id = academic_performance.teacher_id) AS firstname,
-   ...>       (SELECT teachers.lastname FROM teachers WHERE teachers.id = academic_performance.teacher_id) AS lastname
-   ...>  FROM academic_performance
-   ...>      WHERE academic_performance.teacher_id = (SELECT teachers.id FROM teachers WHERE teachers.firstname || ' ' || teachers.lastname = 'Наталья Петрова')
-   ...> UNION
-   ...> SELECT stream_id,
-   ...>       (SELECT teachers.firstname FROM teachers WHERE teachers.id = academic_performance.teacher_id) AS firstname,
-   ...>       (SELECT teachers.lastname FROM teachers WHERE teachers.id = academic_performance.teacher_id) AS lastname
-   ...>  FROM academic_performance
-   ...>      WHERE academic_performance.performance < 4.8;
-+-----------+-----------+----------+
-| stream_id | firstname | lastname |
-+-----------+-----------+----------+
-| 1         | Елена     | Малышева |
-| 2         | Наталья   | Петрова  |
-+-----------+-----------+----------+
-
+3. Найти среднюю оценку по всем потокам для всех учителей. 
+В отчет вывести идентификатор, фамилию и имя учителя, среднюю оценку по всем проведенным потокам. 
+Учителя, у которых не было потоков, также должны попасть в выборку.
+SELECT
+   ...>    teachers.id,
+   ...>    teachers.lastname,
+   ...>    teachers.firstname,
+   ...>    AVG(academic_performance.performance) AS average_performance
+   ...>    FROM streams LEFT JOIN teachers LEFT JOIN academic_performance
+   ...>    ON teachers.id = academic_performance.teacher_id
+   ...>    GROUP BY teachers.id;
++----+----------+-----------+---------------------+
+| id | lastname | firstname | average_performance |
++----+----------+-----------+---------------------+
+| 1  | Савельев | Николай   | 4.85                |
+| 2  | Петрова  | Наталья   | 4.9                 |
+| 3  | Малышева | Елена     | 4.7                 |
++----+----------+-----------+---------------------+
